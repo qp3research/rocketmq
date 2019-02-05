@@ -17,9 +17,9 @@
 package org.apache.rocketmq.broker.mqtrace;
 
 public interface SendMessageHook {
-    String hookName();
+    public String hookName();
 
-    void sendMessageBefore(final SendMessageContext context);
+    public void sendMessageBefore(final SendMessageContext context);
 
-    void sendMessageAfter(final SendMessageContext context);
+    public void sendMessageAfter(final SendMessageContext context);
 }

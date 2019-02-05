@@ -29,7 +29,6 @@ public class PullRequest {
     private final long pullFromThisOffset;
     private final SubscriptionData subscriptionData;
     private final MessageFilter messageFilter;
-    private final boolean snodeRequest;
 
     public PullRequest(RemotingCommand requestCommand, Channel clientChannel, long timeoutMillis, long suspendTimestamp,
         long pullFromThisOffset, SubscriptionData subscriptionData,
@@ -41,20 +40,6 @@ public class PullRequest {
         this.pullFromThisOffset = pullFromThisOffset;
         this.subscriptionData = subscriptionData;
         this.messageFilter = messageFilter;
-        this.snodeRequest = false;
-    }
-
-    public PullRequest(RemotingCommand requestCommand, Channel clientChannel, long timeoutMillis, long suspendTimestamp,
-        long pullFromThisOffset, SubscriptionData subscriptionData,
-        MessageFilter messageFilter, boolean snodeRequest) {
-        this.requestCommand = requestCommand;
-        this.clientChannel = clientChannel;
-        this.timeoutMillis = timeoutMillis;
-        this.suspendTimestamp = suspendTimestamp;
-        this.pullFromThisOffset = pullFromThisOffset;
-        this.subscriptionData = subscriptionData;
-        this.messageFilter = messageFilter;
-        this.snodeRequest = snodeRequest;
     }
 
     public RemotingCommand getRequestCommand() {
@@ -83,9 +68,5 @@ public class PullRequest {
 
     public MessageFilter getMessageFilter() {
         return messageFilter;
-    }
-
-    public boolean isSnodeRequest() {
-        return snodeRequest;
     }
 }
