@@ -50,10 +50,7 @@ public class SendMessageRequestHeader implements CommandCustomHeader {
     private boolean unitMode = false;
     @CFNullable
     private boolean batch = false;
-
     private Integer maxReconsumeTimes;
-
-    private String enodeName;
 
     @Override
     public void checkFields() throws RemotingCommandException {
@@ -161,32 +158,5 @@ public class SendMessageRequestHeader implements CommandCustomHeader {
 
     public void setBatch(boolean batch) {
         this.batch = batch;
-    }
-
-    public String getEnodeName() {
-        return enodeName;
-    }
-
-    public void setEnodeName(String enodeName) {
-        this.enodeName = enodeName;
-    }
-
-    @Override public String toString() {
-        return "SendMessageRequestHeader{" +
-            "producerGroup='" + producerGroup + '\'' +
-            ", topic='" + topic + '\'' +
-            ", defaultTopic='" + defaultTopic + '\'' +
-            ", defaultTopicQueueNums=" + defaultTopicQueueNums +
-            ", queueId=" + queueId +
-            ", sysFlag=" + sysFlag +
-            ", bornTimestamp=" + bornTimestamp +
-            ", flag=" + flag +
-            ", properties='" + properties + '\'' +
-            ", reconsumeTimes=" + reconsumeTimes +
-            ", unitMode=" + unitMode +
-            ", batch=" + batch +
-            ", maxReconsumeTimes=" + maxReconsumeTimes +
-            ", enodeName='" + enodeName + '\'' +
-            '}';
     }
 }
