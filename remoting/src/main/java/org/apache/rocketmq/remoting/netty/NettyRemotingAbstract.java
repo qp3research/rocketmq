@@ -23,7 +23,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import java.net.SocketAddress;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -36,8 +35,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.ChannelEventListener;
 import org.apache.rocketmq.remoting.InvokeCallback;
 import org.apache.rocketmq.remoting.RPCHook;
@@ -48,6 +45,8 @@ import org.apache.rocketmq.remoting.common.ServiceThread;
 import org.apache.rocketmq.remoting.exception.RemotingSendRequestException;
 import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode;
 
@@ -95,13 +94,6 @@ public abstract class NettyRemotingAbstract {
      * SSL context via which to create {@link SslHandler}.
      */
     protected volatile SslContext sslContext;
-
-    /**
-     * custom rpc hooks
-     */
-    protected List<RPCHook> rpcHooks = new ArrayList<RPCHook>();
-
-
 
     static {
         NettyLogger.initNettyLogger();
@@ -166,23 +158,6 @@ public abstract class NettyRemotingAbstract {
         }
     }
 
-    protected void doBeforeRpcHooks(String addr, RemotingCommand request) {
-        if (rpcHooks.size() > 0) {
-            for (RPCHook rpcHook: rpcHooks) {
-                rpcHook.doBeforeRequest(addr, request);
-            }
-        }
-    }
-
-    protected void doAfterRpcHooks(String addr, RemotingCommand request, RemotingCommand response) {
-        if (rpcHooks.size() > 0) {
-            for (RPCHook rpcHook: rpcHooks) {
-                rpcHook.doAfterResponse(addr, request, response);
-            }
-        }
-    }
-
-
     /**
      * Process incoming request command issued by remote peer.
      *
@@ -199,9 +174,15 @@ public abstract class NettyRemotingAbstract {
                 @Override
                 public void run() {
                     try {
-                        doBeforeRpcHooks(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), cmd);
+                        RPCHook rpcHook = NettyRemotingAbstract.this.getRPCHook();
+                        if (rpcHook != null) {
+                            rpcHook.doBeforeRequest(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), cmd);
+                        }
+
                         final RemotingCommand response = pair.getObject1().processRequest(ctx, cmd);
-                        doAfterRpcHooks(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), cmd, response);
+                        if (rpcHook != null) {
+                            rpcHook.doAfterResponse(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), cmd, response);
+                        }
 
                         if (!cmd.isOnewayRPC()) {
                             if (response != null) {
@@ -333,29 +314,12 @@ public abstract class NettyRemotingAbstract {
         }
     }
 
-
-
     /**
      * Custom RPC hook.
-     * Just be compatible with the previous version, use getRPCHooks instead.
-     */
-    @Deprecated
-    protected RPCHook getRPCHook() {
-        if (rpcHooks.size() > 0) {
-            return rpcHooks.get(0);
-        }
-        return null;
-    }
-
-    /**
-     * Custom RPC hooks.
      *
-     * @return RPC hooks if specified; null otherwise.
+     * @return RPC hook if specified; null otherwise.
      */
-    public List<RPCHook> getRPCHooks() {
-        return rpcHooks;
-    }
-
+    public abstract RPCHook getRPCHook();
 
     /**
      * This method specifies thread pool to use while invoking callback methods.

@@ -31,7 +31,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import org.apache.rocketmq.acl.AccessValidator;
 import org.apache.rocketmq.broker.client.ClientHousekeepingService;
 import org.apache.rocketmq.broker.client.ConsumerIdsChangeListener;
 import org.apache.rocketmq.broker.client.ConsumerManager;
@@ -92,7 +91,6 @@ import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.netty.RequestTask;
 import org.apache.rocketmq.remoting.netty.TlsSystemConfig;
-import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.srvutil.FileWatchService;
 import org.apache.rocketmq.store.DefaultMessageStore;
 import org.apache.rocketmq.store.MessageArrivingListener;
@@ -158,7 +156,6 @@ public class BrokerController {
     private TransactionalMessageCheckService transactionalMessageCheckService;
     private TransactionalMessageService transactionalMessageService;
     private AbstractTransactionalMessageCheckListener transactionalMessageCheckListener;
-
 
     public BrokerController(
         final BrokerConfig brokerConfig,
@@ -470,8 +467,6 @@ public class BrokerController {
                 }
             }
             initialTransaction();
-            initialAcl();
-            initialRpcHooks();
         }
         return result;
     }
@@ -489,47 +484,6 @@ public class BrokerController {
         }
         this.transactionalMessageCheckListener.setBrokerController(this);
         this.transactionalMessageCheckService = new TransactionalMessageCheckService(this);
-    }
-
-    private void initialAcl() {
-        if (!this.brokerConfig.isAclEnable()) {
-            log.info("The broker dose not enable acl");
-            return;
-        }
-
-        List<AccessValidator> accessValidators = ServiceProvider.load(ServiceProvider.ACL_VALIDATOR_ID, AccessValidator.class);
-        if (accessValidators == null || accessValidators.isEmpty()) {
-            log.info("The broker dose not load the AccessValidator");
-            return;
-        }
-
-        for (AccessValidator accessValidator: accessValidators) {
-            final AccessValidator validator = accessValidator;
-            this.registerServerRPCHook(new RPCHook() {
-
-                @Override
-                public void doBeforeRequest(String remoteAddr, RemotingCommand request) {
-                    //Do not catch the exception
-                    validator.validate(validator.parse(request, remoteAddr));
-                }
-
-                @Override
-                public void doAfterResponse(String remoteAddr, RemotingCommand request, RemotingCommand response) {
-                }
-            });
-        }
-    }
-
-
-    private void initialRpcHooks() {
-
-        List<RPCHook> rpcHooks = ServiceProvider.load(ServiceProvider.RPC_HOOK_ID, RPCHook.class);
-        if (rpcHooks == null || rpcHooks.isEmpty()) {
-            return;
-        }
-        for (RPCHook rpcHook: rpcHooks) {
-            this.registerServerRPCHook(rpcHook);
-        }
     }
 
     public void registerProcessor() {
@@ -1035,7 +989,6 @@ public class BrokerController {
 
     public void registerServerRPCHook(RPCHook rpcHook) {
         getRemotingServer().registerRPCHook(rpcHook);
-        this.fastRemotingServer.registerRPCHook(rpcHook);
     }
 
     public RemotingServer getRemotingServer() {
@@ -1096,9 +1049,7 @@ public class BrokerController {
         this.transactionalMessageCheckListener = transactionalMessageCheckListener;
     }
 
-
     public BlockingQueue<Runnable> getEndTransactionThreadPoolQueue() {
         return endTransactionThreadPoolQueue;
-
     }
 }
