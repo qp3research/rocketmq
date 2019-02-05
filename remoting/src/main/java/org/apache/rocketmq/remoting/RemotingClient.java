@@ -22,32 +22,33 @@ import org.apache.rocketmq.remoting.exception.RemotingConnectException;
 import org.apache.rocketmq.remoting.exception.RemotingSendRequestException;
 import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
+import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 public interface RemotingClient extends RemotingService {
 
-    void updateNameServerAddressList(final List<String> addresses);
+    void updateNameServerAddressList(final List<String> addrs);
 
     List<String> getNameServerAddressList();
 
-    RemotingCommand invokeSync(final String address, final RemotingCommand request,
+    RemotingCommand invokeSync(final String addr, final RemotingCommand request,
         final long timeoutMillis) throws InterruptedException, RemotingConnectException,
         RemotingSendRequestException, RemotingTimeoutException;
 
-    void invokeAsync(final String address, final RemotingCommand request, final long timeoutMillis,
+    void invokeAsync(final String addr, final RemotingCommand request, final long timeoutMillis,
         final InvokeCallback invokeCallback) throws InterruptedException, RemotingConnectException,
         RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException;
 
-    void invokeOneway(final String address, final RemotingCommand request, final long timeoutMillis)
+    void invokeOneway(final String addr, final RemotingCommand request, final long timeoutMillis)
         throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException,
         RemotingTimeoutException, RemotingSendRequestException;
 
-    void registerProcessor(final int requestCode, final RequestProcessor processor,
+    void registerProcessor(final int requestCode, final NettyRequestProcessor processor,
         final ExecutorService executor);
 
     void setCallbackExecutor(final ExecutorService callbackExecutor);
 
     ExecutorService getCallbackExecutor();
 
-    RemotingClient init(ClientConfig nettyClientConfig, ChannelEventListener channelEventListener);
+    boolean isChannelWritable(final String addr);
 }

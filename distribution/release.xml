@@ -67,7 +67,6 @@
                 <include>org.apache.rocketmq:rocketmq-namesrv</include>
                 <include>org.apache.rocketmq:rocketmq-example</include>
                 <include>org.apache.rocketmq:rocketmq-openmessaging</include>
-                <include>org.apache.rocketmq:rocketmq-snode</include>
             </includes>
             <binaries>
                 <outputDirectory>lib/</outputDirectory>
