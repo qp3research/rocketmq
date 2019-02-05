@@ -167,4 +167,19 @@ public class RequestCode {
     public static final int QUERY_CONSUME_QUEUE = 321;
 
     public static final int QUERY_DATA_VERSION = 322;
+
+    public static final int REGISTER_SNODE = 350;
+
+    public static final int SNODE_PULL_MESSAGE = 351;
+
+    public static final int SNODE_PUSH_MESSAGE = 352;
+
+    public static final int GET_SNODE_CLUSTER_INFO = 353;
+
+    public static final int GET_SNODE_INFO = 354;
+
+
+
+
+    public static final int MQTT_MESSAGE = 1000;
 }
