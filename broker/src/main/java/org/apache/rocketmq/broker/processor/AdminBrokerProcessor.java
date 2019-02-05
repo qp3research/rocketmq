@@ -17,6 +17,7 @@
 package org.apache.rocketmq.broker.processor;
 
 import com.alibaba.fastjson.JSON;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.UnsupportedEncodingException;
 import java.net.UnknownHostException;
@@ -102,15 +103,13 @@ import org.apache.rocketmq.common.stats.StatsItem;
 import org.apache.rocketmq.common.stats.StatsSnapshot;
 import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
 import org.apache.rocketmq.filter.util.BitsArray;
-import org.apache.rocketmq.remoting.RemotingChannel;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
-import org.apache.rocketmq.remoting.RequestProcessor;
-import org.apache.rocketmq.remoting.netty.NettyChannelHandlerContextImpl;
-import org.apache.rocketmq.remoting.serialize.LanguageCode;
+import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
+import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.remoting.serialize.RemotingSerializable;
+import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import org.apache.rocketmq.store.ConsumeQueue;
 import org.apache.rocketmq.store.ConsumeQueueExt;
 import org.apache.rocketmq.store.DefaultMessageStore;
@@ -118,7 +117,7 @@ import org.apache.rocketmq.store.MessageFilter;
 import org.apache.rocketmq.store.MessageStore;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 
-public class AdminBrokerProcessor implements RequestProcessor {
+public class AdminBrokerProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
 
@@ -127,10 +126,8 @@ public class AdminBrokerProcessor implements RequestProcessor {
     }
 
     @Override
-    public RemotingCommand processRequest(RemotingChannel remotingChannel,
+    public RemotingCommand processRequest(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
-        NettyChannelHandlerContextImpl nettyChannelHandlerContext = (NettyChannelHandlerContextImpl)remotingChannel;
-        ChannelHandlerContext ctx = nettyChannelHandlerContext.getChannelHandlerContext();
         switch (request.getCode()) {
             case RequestCode.UPDATE_AND_CREATE_TOPIC:
                 return this.updateAndCreateTopic(ctx, request);
@@ -596,14 +593,14 @@ public class AdminBrokerProcessor implements RequestProcessor {
             bodydata.setMessageModel(consumerGroupInfo.getMessageModel());
             bodydata.getSubscriptionTable().putAll(consumerGroupInfo.getSubscriptionTable());
 
-            Iterator<Map.Entry<RemotingChannel, ClientChannelInfo>> it = consumerGroupInfo.getChannelInfoTable().entrySet().iterator();
+            Iterator<Map.Entry<Channel, ClientChannelInfo>> it = consumerGroupInfo.getChannelInfoTable().entrySet().iterator();
             while (it.hasNext()) {
                 ClientChannelInfo info = it.next().getValue();
                 Connection connection = new Connection();
                 connection.setClientId(info.getClientId());
                 connection.setLanguage(info.getLanguage());
                 connection.setVersion(info.getVersion());
-                connection.setClientAddr(RemotingHelper.parseChannelRemoteAddr(info.getRemotingChannel().remoteAddress()));
+                connection.setClientAddr(RemotingHelper.parseChannelRemoteAddr(info.getChannel()));
 
                 bodydata.getConnectionSet().add(connection);
             }
@@ -628,17 +625,17 @@ public class AdminBrokerProcessor implements RequestProcessor {
             (GetProducerConnectionListRequestHeader) request.decodeCommandCustomHeader(GetProducerConnectionListRequestHeader.class);
 
         ProducerConnection bodydata = new ProducerConnection();
-        HashMap<RemotingChannel, ClientChannelInfo> channelInfoHashMap =
+        HashMap<Channel, ClientChannelInfo> channelInfoHashMap =
             this.brokerController.getProducerManager().getGroupChannelTable().get(requestHeader.getProducerGroup());
         if (channelInfoHashMap != null) {
-            Iterator<Map.Entry<RemotingChannel, ClientChannelInfo>> it = channelInfoHashMap.entrySet().iterator();
+            Iterator<Map.Entry<Channel, ClientChannelInfo>> it = channelInfoHashMap.entrySet().iterator();
             while (it.hasNext()) {
                 ClientChannelInfo info = it.next().getValue();
                 Connection connection = new Connection();
                 connection.setClientId(info.getClientId());
                 connection.setLanguage(info.getLanguage());
                 connection.setVersion(info.getVersion());
-                connection.setClientAddr(RemotingHelper.parseChannelRemoteAddr(info.getRemotingChannel().remoteAddress()));
+                connection.setClientAddr(RemotingHelper.parseChannelRemoteAddr(info.getChannel()));
 
                 bodydata.getConnectionSet().add(connection);
             }
@@ -1278,7 +1275,7 @@ public class AdminBrokerProcessor implements RequestProcessor {
             newRequest.setExtFields(request.getExtFields());
             newRequest.setBody(request.getBody());
 
-            return this.brokerController.getBroker2Client().callClient(clientChannelInfo.getRemotingChannel(), newRequest);
+            return this.brokerController.getBroker2Client().callClient(clientChannelInfo.getChannel(), newRequest);
         } catch (RemotingTimeoutException e) {
             response.setCode(ResponseCode.CONSUME_MSG_TIMEOUT);
             response
