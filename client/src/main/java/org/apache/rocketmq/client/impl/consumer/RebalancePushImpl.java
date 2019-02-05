@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.client.impl.consumer;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -59,11 +58,6 @@ public class RebalancePushImpl extends RebalanceImpl {
         log.info("{} Rebalance changed, also update version: {}, {}", topic, subscriptionData.getSubVersion(), newVersion);
         subscriptionData.setSubVersion(newVersion);
 
-        Set<MessageQueue> queueIdSet = new HashSet<MessageQueue>();
-        for (MessageQueue messageQueue : mqAll) {
-            queueIdSet.add(messageQueue);
-        }
-        subscriptionData.setMessageQueueSet(queueIdSet);
         int currentQueueCount = this.processQueueTable.size();
         if (currentQueueCount != 0) {
             int pullThresholdForTopic = this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer().getPullThresholdForTopic();
@@ -221,6 +215,14 @@ public class RebalancePushImpl extends RebalanceImpl {
     public void dispatchPullRequest(List<PullRequest> pullRequestList) {
         for (PullRequest pullRequest : pullRequestList) {
             this.defaultMQPushConsumerImpl.executePullRequestImmediately(pullRequest);
+            log.info("doRebalance, {}, add a new pull request {}", consumerGroup, pullRequest);
+        }
+    }
+
+    @Override
+    public void dispatchPullRequestLater(List<PullRequest> pullRequestList) {
+        for (PullRequest pullRequest : pullRequestList) {
+            this.defaultMQPushConsumerImpl.executePullRequestLater(pullRequest,50L);
             log.info("doRebalance, {}, add a new pull request {}", consumerGroup, pullRequest);
         }
     }

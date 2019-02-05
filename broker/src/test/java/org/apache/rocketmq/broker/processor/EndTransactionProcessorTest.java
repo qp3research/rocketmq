@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.broker.processor;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.transaction.OperationResult;
@@ -29,11 +28,9 @@ import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.EndTransactionRequestHeader;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
-import org.apache.rocketmq.remoting.ClientConfig;
-import org.apache.rocketmq.remoting.ServerConfig;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.CodecHelper;
-import org.apache.rocketmq.remoting.netty.NettyChannelHandlerContextImpl;
+import org.apache.rocketmq.remoting.netty.NettyClientConfig;
+import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.AppendMessageResult;
 import org.apache.rocketmq.store.AppendMessageStatus;
@@ -51,7 +48,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -60,14 +56,11 @@ public class EndTransactionProcessorTest {
     private EndTransactionProcessor endTransactionProcessor;
 
     @Mock
-    private NettyChannelHandlerContextImpl handlerContext;
-
-    @Mock
-    private ChannelHandlerContext channelHandlerContext;
+    private ChannelHandlerContext handlerContext;
 
     @Spy
     private BrokerController
-        brokerController = new BrokerController(new BrokerConfig(), new ServerConfig(), new ClientConfig(),
+        brokerController = new BrokerController(new BrokerConfig(), new NettyServerConfig(), new NettyClientConfig(),
         new MessageStoreConfig());
 
     @Mock
@@ -80,9 +73,6 @@ public class EndTransactionProcessorTest {
     public void init() {
         brokerController.setMessageStore(messageStore);
         brokerController.setTransactionalMessageService(transactionMsgService);
-        Channel mockChannel = mock(Channel.class);
-        when(handlerContext.getChannelHandlerContext()).thenReturn(channelHandlerContext);
-        when(channelHandlerContext.channel()).thenReturn(mockChannel);
         endTransactionProcessor = new EndTransactionProcessor(brokerController);
     }
 
@@ -156,7 +146,7 @@ public class EndTransactionProcessorTest {
     private RemotingCommand createEndTransactionMsgCommand(int status, boolean isCheckMsg) {
         EndTransactionRequestHeader header = createEndTransactionRequestHeader(status, isCheckMsg);
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.END_TRANSACTION, header);
-        CodecHelper.makeCustomHeaderToNet(request);
+        request.makeCustomHeaderToNet();
         return request;
     }
 }
