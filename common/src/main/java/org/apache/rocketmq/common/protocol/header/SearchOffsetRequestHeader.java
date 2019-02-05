@@ -32,8 +32,6 @@ public class SearchOffsetRequestHeader implements CommandCustomHeader {
     @CFNotNull
     private Long timestamp;
 
-    private String enodeName;
-
     @Override
     public void checkFields() throws RemotingCommandException {
 
@@ -63,11 +61,4 @@ public class SearchOffsetRequestHeader implements CommandCustomHeader {
         this.timestamp = timestamp;
     }
 
-    public String getEnodeName() {
-        return enodeName;
-    }
-
-    public void setEnodeName(String enodeName) {
-        this.enodeName = enodeName;
-    }
 }
