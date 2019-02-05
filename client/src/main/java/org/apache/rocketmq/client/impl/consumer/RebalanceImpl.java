@@ -406,8 +406,6 @@ public abstract class RebalanceImpl {
         return changed;
     }
 
-    public abstract void dispatchPullRequestLater(List<PullRequest> pullRequestList);
-
     public abstract void messageQueueChanged(final String topic, final Set<MessageQueue> mqAll,
         final Set<MessageQueue> mqDivided);
 
@@ -420,6 +418,8 @@ public abstract class RebalanceImpl {
     public abstract long computePullFromWhere(final MessageQueue mq);
 
     public abstract void dispatchPullRequest(final List<PullRequest> pullRequestList);
+
+    public abstract void dispatchPullRequestLater(final List<PullRequest> pullRequestList);
 
     public void removeProcessQueue(final MessageQueue mq) {
         ProcessQueue prev = this.processQueueTable.remove(mq);
