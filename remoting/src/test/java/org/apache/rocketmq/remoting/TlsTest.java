@@ -22,21 +22,21 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.concurrent.Executors;
-import org.apache.rocketmq.remoting.annotation.CFNullable;
 import org.apache.rocketmq.remoting.common.TlsMode;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.exception.RemotingSendRequestException;
+import org.apache.rocketmq.remoting.netty.NettyClientConfig;
+import org.apache.rocketmq.remoting.netty.NettyRemotingServer;
 import org.apache.rocketmq.remoting.netty.TlsHelper;
-import org.apache.rocketmq.remoting.serialize.LanguageCode;
+import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.remoting.transport.rocketmq.NettyRemotingServer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.TLS_CLIENT_AUTHSERVER;
 import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.TLS_CLIENT_CERTPATH;
@@ -67,35 +67,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
 import static org.junit.Assert.assertTrue;
 
+@RunWith(MockitoJUnitRunner.class)
 public class TlsTest {
     private RemotingServer remotingServer;
     private RemotingClient remotingClient;
-    private int defaultRequestCode = 0;
-
-    public RemotingServer createRemotingServer() throws InterruptedException {
-        RemotingServer remotingServer = RemotingServerFactory.getInstance().createRemotingServer().init(new ServerConfig()
-            ,null);
-        remotingServer.registerProcessor(defaultRequestCode, new RequestProcessor() {
-            @Override
-            public RemotingCommand processRequest(RemotingChannel ctx, RemotingCommand request) {
-                request.setRemark("Hi " + ctx.remoteAddress());
-                return request;
-            }
-
-            @Override
-            public boolean rejectRequest() {
-                return false;
-            }
-        }, Executors.newSingleThreadExecutor());
-        remotingServer.start();
-        return remotingServer;
-    }
-
-    public RemotingClient createRemotingClient(ClientConfig clientConfig) {
-        RemotingClient client = RemotingClientFactory.getInstance().createRemotingClient().init(clientConfig, null);
-        client.start();
-        return client;
-    }
 
     @Rule
     public TestName name = new TestName();
@@ -119,7 +94,7 @@ public class TlsTest {
         tlsClientKeyPassword = "1234";
         tlsServerKeyPassword = "";
 
-        ClientConfig clientConfig = new ClientConfig();
+        NettyClientConfig clientConfig = new NettyClientConfig();
         clientConfig.setUseTLS(true);
 
         if ("serverRejectsUntrustedClientCert".equals(name.getMethodName())) {
@@ -165,8 +140,8 @@ public class TlsTest {
             tlsServerNeedClientAuth = "none";
         }
 
-        remotingServer = createRemotingServer();
-        remotingClient = createRemotingClient(clientConfig);
+        remotingServer = RemotingServerTest.createRemotingServer();
+        remotingClient = RemotingServerTest.createRemotingClient(clientConfig);
     }
 
     @After
@@ -199,9 +174,9 @@ public class TlsTest {
         requestThenAssertResponse();
 
         //Start another client
-        ClientConfig clientConfig = new ClientConfig();
+        NettyClientConfig clientConfig = new NettyClientConfig();
         clientConfig.setUseTLS(true);
-        RemotingClient remotingClient = createRemotingClient(clientConfig);
+        RemotingClient remotingClient = RemotingServerTest.createRemotingClient(clientConfig);
         requestThenAssertResponse(remotingClient);
     }
 
@@ -347,33 +322,5 @@ public class TlsTest {
         assertThat(response.getLanguage()).isEqualTo(LanguageCode.JAVA);
         assertThat(response.getExtFields()).hasSize(2);
         assertThat(response.getExtFields().get("messageTitle")).isEqualTo("Welcome");
-    }
-
-    static class RequestHeader implements CommandCustomHeader {
-        @CFNullable
-        private Integer count;
-
-        @CFNullable
-        private String messageTitle;
-
-        @Override
-        public void checkFields() throws RemotingCommandException {
-        }
-
-        public Integer getCount() {
-            return count;
-        }
-
-        public void setCount(Integer count) {
-            this.count = count;
-        }
-
-        public String getMessageTitle() {
-            return messageTitle;
-        }
-
-        public void setMessageTitle(String messageTitle) {
-            this.messageTitle = messageTitle;
-        }
     }
 }
