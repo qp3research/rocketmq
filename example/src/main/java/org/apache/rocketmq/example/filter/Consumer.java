@@ -16,6 +16,7 @@
  */
 package org.apache.rocketmq.example.filter;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
@@ -23,14 +24,20 @@ import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.message.MessageExt;
 
 public class Consumer {
 
     public static void main(String[] args) throws InterruptedException, MQClientException, IOException {
-        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("please_rename_unique_group_name");
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("ConsumerGroupNamecc4");
 
-        consumer.subscribe("TagFilterTest", "TagA || TagC");
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        File classFile = new File(classLoader.getResource("MessageFilterImpl.java").getFile());
+
+        String filterCode = MixAll.file2String(classFile);
+        consumer.subscribe("TopicTest", "org.apache.rocketmq.example.filter.MessageFilterImpl",
+            filterCode);
 
         consumer.registerMessageListener(new MessageListenerConcurrently() {
 
@@ -46,5 +53,4 @@ public class Consumer {
 
         System.out.printf("Consumer Started.%n");
     }
-
 }

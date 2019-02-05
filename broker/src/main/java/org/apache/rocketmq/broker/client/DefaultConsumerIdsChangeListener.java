@@ -16,11 +16,13 @@
  */
 package org.apache.rocketmq.broker.client;
 
+import io.netty.channel.Channel;
+
 import java.util.Collection;
 import java.util.List;
+
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.remoting.RemotingChannel;
 
 public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListener {
     private final BrokerController brokerController;
@@ -39,9 +41,9 @@ public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListen
                 if (args == null || args.length < 1) {
                     return;
                 }
-                List<RemotingChannel> channels = (List<RemotingChannel>) args[0];
+                List<Channel> channels = (List<Channel>) args[0];
                 if (channels != null && brokerController.getBrokerConfig().isNotifyConsumerIdsChangedEnable()) {
-                    for (RemotingChannel chl : channels) {
+                    for (Channel chl : channels) {
                         this.brokerController.getBroker2Client().notifyConsumerIdsChanged(chl, group);
                     }
                 }
