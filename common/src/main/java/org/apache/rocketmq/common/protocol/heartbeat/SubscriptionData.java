@@ -25,14 +25,12 @@ import org.apache.rocketmq.common.filter.ExpressionType;
 
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.rocketmq.common.message.MessageQueue;
 
 public class SubscriptionData implements Comparable<SubscriptionData> {
     public final static String SUB_ALL = "*";
     private boolean classFilterMode = false;
     private String topic;
     private String subString;
-    private Set<MessageQueue> messageQueueSet = new HashSet<MessageQueue>();
     private Set<String> tagsSet = new HashSet<String>();
     private Set<Integer> codeSet = new HashSet<Integer>();
     private long subVersion = System.currentTimeMillis();
@@ -115,14 +113,6 @@ public class SubscriptionData implements Comparable<SubscriptionData> {
         this.expressionType = expressionType;
     }
 
-    public Set<MessageQueue> getMessageQueueSet() {
-        return messageQueueSet;
-    }
-
-    public void setMessageQueueSet(Set<MessageQueue> messageQueueSet) {
-        this.messageQueueSet = messageQueueSet;
-    }
-
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -177,17 +167,11 @@ public class SubscriptionData implements Comparable<SubscriptionData> {
         return true;
     }
 
-    @Override public String toString() {
-        return "SubscriptionData{" +
-            "classFilterMode=" + classFilterMode +
-            ", topic='" + topic + '\'' +
-            ", subString='" + subString + '\'' +
-            ", tagsSet=" + tagsSet +
-            ", codeSet=" + codeSet +
-            ", subVersion=" + subVersion +
-            ", expressionType='" + expressionType + '\'' +
-            ", filterClassSource='" + filterClassSource + '\'' +
-            '}';
+    @Override
+    public String toString() {
+        return "SubscriptionData [classFilterMode=" + classFilterMode + ", topic=" + topic + ", subString="
+            + subString + ", tagsSet=" + tagsSet + ", codeSet=" + codeSet + ", subVersion=" + subVersion
+            + ", expressionType=" + expressionType + "]";
     }
 
     @Override
