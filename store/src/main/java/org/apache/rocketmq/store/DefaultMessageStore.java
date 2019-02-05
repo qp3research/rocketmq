@@ -1276,12 +1276,12 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     private void recover(final boolean lastExitOK) {
-        long maxPhyOffsetOfConsumeQueue = this.recoverConsumeQueue();
+        this.recoverConsumeQueue();
 
         if (lastExitOK) {
-            this.commitLog.recoverNormally(maxPhyOffsetOfConsumeQueue);
+            this.commitLog.recoverNormally();
         } else {
-            this.commitLog.recoverAbnormally(maxPhyOffsetOfConsumeQueue);
+            this.commitLog.recoverAbnormally();
         }
 
         this.recoverTopicQueueTable();
@@ -1306,18 +1306,12 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
-    private long recoverConsumeQueue() {
-        long maxPhysicOffset = -1;
+    private void recoverConsumeQueue() {
         for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
             for (ConsumeQueue logic : maps.values()) {
                 logic.recover();
-                if (logic.getMaxPhysicOffset() > maxPhysicOffset) {
-                    maxPhysicOffset = logic.getMaxPhysicOffset();
-                }
             }
         }
-
-        return maxPhysicOffset;
     }
 
     private void recoverTopicQueueTable() {
