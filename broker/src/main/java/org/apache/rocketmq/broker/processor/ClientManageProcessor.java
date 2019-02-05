@@ -37,15 +37,12 @@ import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
 import org.apache.rocketmq.common.sysflag.TopicSysFlag;
 import org.apache.rocketmq.filter.FilterFactory;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
-import org.apache.rocketmq.remoting.RemotingChannel;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.NettyChannelHandlerContextImpl;
-import org.apache.rocketmq.remoting.netty.NettyChannelImpl;
-import org.apache.rocketmq.remoting.RequestProcessor;
+import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
-public class ClientManageProcessor implements RequestProcessor {
+public class ClientManageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
 
@@ -54,11 +51,8 @@ public class ClientManageProcessor implements RequestProcessor {
     }
 
     @Override
-    public RemotingCommand processRequest(RemotingChannel remotingChannel,
-        RemotingCommand request) throws RemotingCommandException  {
-        NettyChannelHandlerContextImpl nettyChannelHandlerContext = (NettyChannelHandlerContextImpl)remotingChannel;
-        ChannelHandlerContext ctx = nettyChannelHandlerContext.getChannelHandlerContext();
-
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
+        throws RemotingCommandException {
         switch (request.getCode()) {
             case RequestCode.HEART_BEAT:
                 return this.heartBeat(ctx, request);
@@ -80,9 +74,8 @@ public class ClientManageProcessor implements RequestProcessor {
     public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand request) {
         RemotingCommand response = RemotingCommand.createResponseCommand(null);
         HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
-        log.info("heart beat request:{}", heartbeatData);
         ClientChannelInfo clientChannelInfo = new ClientChannelInfo(
-            new NettyChannelImpl(ctx.channel()),
+            ctx.channel(),
             heartbeatData.getClientID(),
             request.getLanguage(),
             request.getVersion()
@@ -128,7 +121,6 @@ public class ClientManageProcessor implements RequestProcessor {
             this.brokerController.getProducerManager().registerProducer(data.getGroupName(),
                 clientChannelInfo);
         }
-
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
         return response;
@@ -143,7 +135,7 @@ public class ClientManageProcessor implements RequestProcessor {
                 .decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
 
         ClientChannelInfo clientChannelInfo = new ClientChannelInfo(
-            new NettyChannelImpl(ctx.channel()),
+            ctx.channel(),
             requestHeader.getClientID(),
             request.getLanguage(),
             request.getVersion());
