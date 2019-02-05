@@ -31,10 +31,10 @@ import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
 import org.apache.rocketmq.common.protocol.header.namesrv.QueryDataVersionResponseHeader;
 import org.apache.rocketmq.common.protocol.header.namesrv.RegisterBrokerResponseHeader;
-import org.apache.rocketmq.remoting.netty.NettyClientConfig;
-import org.apache.rocketmq.remoting.netty.NettyRemotingClient;
-import org.apache.rocketmq.remoting.netty.NettyServerConfig;
+import org.apache.rocketmq.remoting.ClientConfig;
+import org.apache.rocketmq.remoting.ServerConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
+import org.apache.rocketmq.remoting.transport.rocketmq.NettyRemotingClient;
 import org.apache.rocketmq.store.MessageStore;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.junit.Test;
@@ -57,7 +57,7 @@ public class BrokerOuterAPITest {
     @Mock
     private ChannelHandlerContext handlerContext;
     @Spy
-    private BrokerController brokerController = new BrokerController(new BrokerConfig(), new NettyServerConfig(), new NettyClientConfig(), new MessageStoreConfig());
+    private BrokerController brokerController = new BrokerController(new BrokerConfig(), new ServerConfig(), new ClientConfig(), new MessageStoreConfig());
     @Mock
     private MessageStore messageStore;
     private String clusterName = "clusterName";
@@ -75,7 +75,7 @@ public class BrokerOuterAPITest {
     private BrokerOuterAPI brokerOuterAPI;
 
     public void init() throws Exception {
-        brokerOuterAPI = new BrokerOuterAPI(new NettyClientConfig(), null);
+        brokerOuterAPI = new BrokerOuterAPI(new ClientConfig(), null);
         Field field = BrokerOuterAPI.class.getDeclaredField("remotingClient");
         field.setAccessible(true);
         field.set(brokerOuterAPI, nettyRemotingClient);
