@@ -171,23 +171,6 @@ public class BrokerConfig {
     @ImportantField
     private long transactionCheckInterval = 60 * 1000;
 
-    /**
-     * Acl feature switch
-     */
-    @ImportantField
-    private boolean enableAcl = false;
-
-
-    public static String localHostName() {
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-            log.error("Failed to obtain the host name", e);
-        }
-
-        return "DEFAULT_BROKER";
-    }
-
     public boolean isTraceOn() {
         return traceOn;
     }
@@ -250,6 +233,16 @@ public class BrokerConfig {
 
     public void setSlaveReadEnable(final boolean slaveReadEnable) {
         this.slaveReadEnable = slaveReadEnable;
+    }
+
+    public static String localHostName() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            log.error("Failed to obtain the host name", e);
+        }
+
+        return "DEFAULT_BROKER";
     }
 
     public int getRegisterBrokerTimeoutMills() {
@@ -714,14 +707,6 @@ public class BrokerConfig {
 
     public void setTransactionCheckInterval(long transactionCheckInterval) {
         this.transactionCheckInterval = transactionCheckInterval;
-    }
-
-    public boolean isEnableAcl() {
-        return enableAcl;
-    }
-
-    public void setEnableAcl(boolean isAclPlug) {
-        this.enableAcl = isAclPlug;
     }
 
     public int getEndTransactionThreadPoolNums() {
