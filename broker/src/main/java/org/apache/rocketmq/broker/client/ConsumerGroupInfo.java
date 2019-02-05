@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.broker.client;
 
-import io.netty.channel.Channel;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -26,19 +25,21 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.InternalLoggerFactory;
+import org.apache.rocketmq.remoting.RemotingChannel;
 
 public class ConsumerGroupInfo {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final String groupName;
     private final ConcurrentMap<String/* Topic */, SubscriptionData> subscriptionTable =
         new ConcurrentHashMap<String, SubscriptionData>();
-    private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
-        new ConcurrentHashMap<Channel, ClientChannelInfo>(16);
+    private final ConcurrentMap<RemotingChannel, ClientChannelInfo> channelInfoTable =
+        new ConcurrentHashMap<>(16);
+
     private volatile ConsumeType consumeType;
     private volatile MessageModel messageModel;
     private volatile ConsumeFromWhere consumeFromWhere;
@@ -53,9 +54,9 @@ public class ConsumerGroupInfo {
     }
 
     public ClientChannelInfo findChannel(final String clientId) {
-        Iterator<Entry<Channel, ClientChannelInfo>> it = this.channelInfoTable.entrySet().iterator();
+        Iterator<Entry<RemotingChannel, ClientChannelInfo>> it = this.channelInfoTable.entrySet().iterator();
         while (it.hasNext()) {
-            Entry<Channel, ClientChannelInfo> next = it.next();
+            Entry<RemotingChannel, ClientChannelInfo> next = it.next();
             if (next.getValue().getClientId().equals(clientId)) {
                 return next.getValue();
             }
@@ -68,12 +69,12 @@ public class ConsumerGroupInfo {
         return subscriptionTable;
     }
 
-    public ConcurrentMap<Channel, ClientChannelInfo> getChannelInfoTable() {
+    public ConcurrentMap<RemotingChannel, ClientChannelInfo> getChannelInfoTable() {
         return channelInfoTable;
     }
 
-    public List<Channel> getAllChannel() {
-        List<Channel> result = new ArrayList<>();
+    public List<RemotingChannel> getAllChannel() {
+        List<RemotingChannel> result = new ArrayList<>();
 
         result.addAll(this.channelInfoTable.keySet());
 
@@ -83,10 +84,10 @@ public class ConsumerGroupInfo {
     public List<String> getAllClientId() {
         List<String> result = new ArrayList<>();
 
-        Iterator<Entry<Channel, ClientChannelInfo>> it = this.channelInfoTable.entrySet().iterator();
+        Iterator<Entry<RemotingChannel, ClientChannelInfo>> it = this.channelInfoTable.entrySet().iterator();
 
         while (it.hasNext()) {
-            Entry<Channel, ClientChannelInfo> entry = it.next();
+            Entry<RemotingChannel, ClientChannelInfo> entry = it.next();
             ClientChannelInfo clientChannelInfo = entry.getValue();
             result.add(clientChannelInfo.getClientId());
         }
@@ -95,13 +96,13 @@ public class ConsumerGroupInfo {
     }
 
     public void unregisterChannel(final ClientChannelInfo clientChannelInfo) {
-        ClientChannelInfo old = this.channelInfoTable.remove(clientChannelInfo.getChannel());
+        ClientChannelInfo old = this.channelInfoTable.remove(clientChannelInfo.getRemotingChannel());
         if (old != null) {
             log.info("unregister a consumer[{}] from consumerGroupInfo {}", this.groupName, old.toString());
         }
     }
 
-    public boolean doChannelCloseEvent(final String remoteAddr, final Channel channel) {
+    public boolean doChannelCloseEvent(final String remoteAddr, final RemotingChannel channel) {
         final ClientChannelInfo info = this.channelInfoTable.remove(channel);
         if (info != null) {
             log.warn(
@@ -120,9 +121,9 @@ public class ConsumerGroupInfo {
         this.messageModel = messageModel;
         this.consumeFromWhere = consumeFromWhere;
 
-        ClientChannelInfo infoOld = this.channelInfoTable.get(infoNew.getChannel());
+        ClientChannelInfo infoOld = this.channelInfoTable.get(infoNew.getRemotingChannel());
         if (null == infoOld) {
-            ClientChannelInfo prev = this.channelInfoTable.put(infoNew.getChannel(), infoNew);
+            ClientChannelInfo prev = this.channelInfoTable.put(infoNew.getRemotingChannel(), infoNew);
             if (null == prev) {
                 log.info("new consumer connected, group: {} {} {} channel: {}", this.groupName, consumeType,
                     messageModel, infoNew.toString());
@@ -136,7 +137,7 @@ public class ConsumerGroupInfo {
                     this.groupName,
                     infoOld.toString(),
                     infoNew.toString());
-                this.channelInfoTable.put(infoNew.getChannel(), infoNew);
+                this.channelInfoTable.put(infoNew.getRemotingChannel(), infoNew);
             }
         }
 
