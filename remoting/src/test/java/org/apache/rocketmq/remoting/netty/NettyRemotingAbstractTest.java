@@ -17,11 +17,9 @@
 package org.apache.rocketmq.remoting.netty;
 
 import java.util.concurrent.Semaphore;
-import org.apache.rocketmq.remoting.ClientConfig;
 import org.apache.rocketmq.remoting.InvokeCallback;
 import org.apache.rocketmq.remoting.common.SemaphoreReleaseOnlyOnce;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.remoting.transport.rocketmq.NettyRemotingClient;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Spy;
@@ -33,7 +31,7 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class NettyRemotingAbstractTest {
     @Spy
-    private NettyRemotingAbstract remotingAbstract = new NettyRemotingClient(new ClientConfig());
+    private NettyRemotingAbstract remotingAbstract = new NettyRemotingClient(new NettyClientConfig());
 
     @Test
     public void testProcessResponseCommand() throws InterruptedException {
