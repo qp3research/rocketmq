@@ -38,12 +38,9 @@ import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
 import org.apache.rocketmq.common.protocol.heartbeat.ConsumerData;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.remoting.ClientConfig;
-import org.apache.rocketmq.remoting.RemotingChannel;
-import org.apache.rocketmq.remoting.ServerConfig;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.CodecHelper;
-import org.apache.rocketmq.remoting.netty.NettyChannelHandlerContextImpl;
+import org.apache.rocketmq.remoting.netty.NettyClientConfig;
+import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.GetMessageResult;
 import org.apache.rocketmq.store.GetMessageStatus;
@@ -68,13 +65,9 @@ import static org.mockito.Mockito.when;
 public class PullMessageProcessorTest {
     private PullMessageProcessor pullMessageProcessor;
     @Spy
-    private BrokerController brokerController = new BrokerController(new BrokerConfig(), new ServerConfig(), new ClientConfig(), new MessageStoreConfig());
+    private BrokerController brokerController = new BrokerController(new BrokerConfig(), new NettyServerConfig(), new NettyClientConfig(), new MessageStoreConfig());
     @Mock
-    private NettyChannelHandlerContextImpl handlerContext;
-
-    @Mock
-    private ChannelHandlerContext channelHandlerContext;
-
+    private ChannelHandlerContext handlerContext;
     @Mock
     private MessageStore messageStore;
     private ClientChannelInfo clientChannelInfo;
@@ -86,12 +79,10 @@ public class PullMessageProcessorTest {
         brokerController.setMessageStore(messageStore);
         pullMessageProcessor = new PullMessageProcessor(brokerController);
         Channel mockChannel = mock(Channel.class);
-        RemotingChannel remotingChannel = mock(RemotingChannel.class);
         when(mockChannel.remoteAddress()).thenReturn(new InetSocketAddress(1024));
-        when(handlerContext.getChannelHandlerContext()).thenReturn(channelHandlerContext);
-        when(channelHandlerContext.channel()).thenReturn(mockChannel);
+        when(handlerContext.channel()).thenReturn(mockChannel);
         brokerController.getTopicConfigManager().getTopicConfigTable().put(topic, new TopicConfig());
-        clientChannelInfo = new ClientChannelInfo(remotingChannel);
+        clientChannelInfo = new ClientChannelInfo(mockChannel);
         ConsumerData consumerData = createConsumerData(group, topic);
         brokerController.getConsumerManager().registerConsumer(
             consumerData.getGroupName(),
@@ -213,7 +204,7 @@ public class PullMessageProcessorTest {
         requestHeader.setSysFlag(0);
         requestHeader.setSubVersion(100L);
         RemotingCommand request = RemotingCommand.createRequestCommand(requestCode, requestHeader);
-        CodecHelper.makeCustomHeaderToNet(request);
+        request.makeCustomHeaderToNet();
         return request;
     }
 
