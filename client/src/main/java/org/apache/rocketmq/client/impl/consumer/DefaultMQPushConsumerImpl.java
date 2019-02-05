@@ -444,7 +444,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
     }
 
-    public void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
+    private void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
         this.mQClientFactory.getPullMessageService().executePullRequestLater(pullRequest, timeDelay);
     }
 
@@ -462,6 +462,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
     public void executePullRequestImmediately(final PullRequest pullRequest) {
         this.mQClientFactory.getPullMessageService().executePullRequestImmediately(pullRequest);
+    }
+
+    public void executePullRequestLaterChanged(final PullRequest pullRequest) {
+        this.executePullRequestLater(pullRequest,PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
     }
 
     private void correctTagsOffset(final PullRequest pullRequest) {
