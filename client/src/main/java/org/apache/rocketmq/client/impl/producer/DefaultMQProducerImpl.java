@@ -30,10 +30,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.rocketmq.client.QueryResult;
 import org.apache.rocketmq.client.Validators;
 import org.apache.rocketmq.client.common.ClientErrorCode;
@@ -103,10 +101,6 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     private MQFaultStrategy mqFaultStrategy = new MQFaultStrategy();
 
-    private final BlockingQueue<Runnable> asyncSenderThreadPoolQueue;
-    private final ExecutorService defaultAsyncSenderExecutor;
-    private ExecutorService asyncSenderExecutor;
-
     public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer) {
         this(defaultMQProducer, null);
     }
@@ -114,22 +108,6 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer, RPCHook rpcHook) {
         this.defaultMQProducer = defaultMQProducer;
         this.rpcHook = rpcHook;
-
-        this.asyncSenderThreadPoolQueue = new LinkedBlockingQueue<Runnable>(50000);
-        this.defaultAsyncSenderExecutor = new ThreadPoolExecutor(
-            Runtime.getRuntime().availableProcessors(),
-            Runtime.getRuntime().availableProcessors(),
-            1000 * 60,
-            TimeUnit.MILLISECONDS,
-            this.asyncSenderThreadPoolQueue,
-            new ThreadFactory() {
-                private AtomicInteger threadIndex = new AtomicInteger(0);
-
-                @Override
-                public Thread newThread(Runnable r) {
-                    return new Thread(r, "AsyncSenderExecutor_" + this.threadIndex.incrementAndGet());
-                }
-            });
     }
 
     public void registerCheckForbiddenHook(CheckForbiddenHook checkForbiddenHook) {
@@ -269,6 +247,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     /**
      * This method will be removed in the version 5.0.0 and <code>getCheckListener</code> is recommended.
+     *
      * @return
      */
     @Override
@@ -462,13 +441,14 @@ public class DefaultMQProducerImpl implements MQProducerInner {
      * DEFAULT ASYNC -------------------------------------------------------
      */
     public void send(Message msg,
-                     SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException {
+        SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException {
         send(msg, sendCallback, this.defaultMQProducer.getSendMsgTimeout());
     }
 
     /**
-     * It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of timeout.
-     * A new one will be provided in next version
+     * It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of timeout. A new one will be
+     * provided in next version
+     *
      * @param msg
      * @param sendCallback
      * @param timeout the <code>sendCallback</code> will be invoked at most time
@@ -478,7 +458,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     public void send(final Message msg, final SendCallback sendCallback, final long timeout)
         throws MQClientException, RemotingException, InterruptedException {
         final long beginStartTime = System.currentTimeMillis();
-        ExecutorService executor = this.getAsyncSenderExecutor();
+        ExecutorService executor = this.getCallbackExecutor();
         try {
             executor.submit(new Runnable() {
                 @Override
@@ -502,7 +482,6 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
 
     }
-
 
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         return this.mqFaultStrategy.selectOneMessageQueue(tpInfo, lastBrokerName);
@@ -675,18 +654,17 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     private SendResult sendKernelImpl(final Message msg,
-                                      final MessageQueue mq,
-                                      final CommunicationMode communicationMode,
-                                      final SendCallback sendCallback,
-                                      final TopicPublishInfo topicPublishInfo,
-                                      final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        final MessageQueue mq,
+        final CommunicationMode communicationMode,
+        final SendCallback sendCallback,
+        final TopicPublishInfo topicPublishInfo,
+        final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
         String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {
             tryToFindTopicPublishInfo(mq.getTopic());
             brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         }
-
         SendMessageContext context = null;
         if (brokerAddr != null) {
             brokerAddr = MixAll.brokerVIPChannel(this.defaultMQProducer.isSendMessageWithVIPChannel(), brokerAddr);
@@ -755,6 +733,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 requestHeader.setReconsumeTimes(0);
                 requestHeader.setUnitMode(this.isUnitMode());
                 requestHeader.setBatch(msg instanceof MessageBatch);
+                requestHeader.setEnodeName(mq.getBrokerName());
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     String reconsumeTimes = MessageAccessor.getReconsumeTime(msg);
                     if (reconsumeTimes != null) {
@@ -965,8 +944,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     /**
-     * It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of timeout.
-     * A new one will be provided in next version
+     * It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of timeout. A new one will be
+     * provided in next version
+     *
      * @param msg
      * @param mq
      * @param sendCallback
@@ -979,7 +959,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     public void send(final Message msg, final MessageQueue mq, final SendCallback sendCallback, final long timeout)
         throws MQClientException, RemotingException, InterruptedException {
         final long beginStartTime = System.currentTimeMillis();
-        ExecutorService executor = this.getAsyncSenderExecutor();
+        ExecutorService executor = this.getCallbackExecutor();
         try {
             executor.submit(new Runnable() {
                 @Override
@@ -1086,8 +1066,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     /**
-     * It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of timeout.
-     * A new one will be provided in next version
+     * It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of timeout. A new one will be
+     * provided in next version
+     *
      * @param msg
      * @param selector
      * @param arg
@@ -1098,10 +1079,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
      * @throws InterruptedException
      */
     @Deprecated
-    public void send(final Message msg, final MessageQueueSelector selector, final Object arg, final SendCallback sendCallback, final long timeout)
+    public void send(final Message msg, final MessageQueueSelector selector, final Object arg,
+        final SendCallback sendCallback, final long timeout)
         throws MQClientException, RemotingException, InterruptedException {
         final long beginStartTime = System.currentTimeMillis();
-        ExecutorService executor = this.getAsyncSenderExecutor();
+        ExecutorService executor = this.getCallbackExecutor();
         try {
             executor.submit(new Runnable() {
                 @Override
@@ -1142,7 +1124,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     public TransactionSendResult sendMessageInTransaction(final Message msg,
-                                                          final LocalTransactionExecuter localTransactionExecuter, final Object arg)
+        final LocalTransactionExecuter localTransactionExecuter, final Object arg)
         throws MQClientException {
         TransactionListener transactionListener = getCheckListener();
         if (null == localTransactionExecuter && null == transactionListener) {
@@ -1266,12 +1248,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.mQClientFactory.getMQClientAPIImpl().getRemotingClient().setCallbackExecutor(callbackExecutor);
     }
 
-    public ExecutorService getAsyncSenderExecutor() {
-        return null == asyncSenderExecutor ? defaultAsyncSenderExecutor : asyncSenderExecutor;
-    }
+    public ExecutorService getCallbackExecutor() {
+        return this.mQClientFactory.getMQClientAPIImpl().getRemotingClient().getCallbackExecutor();
 
-    public void setAsyncSenderExecutor(ExecutorService asyncSenderExecutor) {
-        this.asyncSenderExecutor = asyncSenderExecutor;
     }
 
     public SendResult send(Message msg,

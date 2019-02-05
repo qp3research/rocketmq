@@ -16,7 +16,12 @@
  */
 package org.apache.rocketmq.broker.client.net;
 
-import io.netty.channel.Channel;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.client.ClientChannelInfo;
 import org.apache.rocketmq.broker.client.ConsumerGroupInfo;
@@ -39,17 +44,11 @@ import org.apache.rocketmq.common.protocol.header.NotifyConsumerIdsChangedReques
 import org.apache.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
+import org.apache.rocketmq.remoting.RemotingChannel;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingSendRequestException;
 import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentMap;
 
 public class Broker2Client {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -61,7 +60,7 @@ public class Broker2Client {
 
     public void checkProducerTransactionState(
         final String group,
-        final Channel channel,
+        final RemotingChannel channel,
         final CheckTransactionStateRequestHeader requestHeader,
         final MessageExt messageExt) throws Exception {
         RemotingCommand request =
@@ -74,14 +73,14 @@ public class Broker2Client {
         }
     }
 
-    public RemotingCommand callClient(final Channel channel,
+    public RemotingCommand callClient(final RemotingChannel channel,
                                       final RemotingCommand request
     ) throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
         return this.brokerController.getRemotingServer().invokeSync(channel, request, 10000);
     }
 
     public void notifyConsumerIdsChanged(
-        final Channel channel,
+        final RemotingChannel channel,
         final String consumerGroup) {
         if (null == consumerGroup) {
             log.error("notifyConsumerIdsChanged consumerGroup is null");
@@ -175,9 +174,9 @@ public class Broker2Client {
             this.brokerController.getConsumerManager().getConsumerGroupInfo(group);
 
         if (consumerGroupInfo != null && !consumerGroupInfo.getAllChannel().isEmpty()) {
-            ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
+            ConcurrentMap<RemotingChannel, ClientChannelInfo> channelInfoTable =
                 consumerGroupInfo.getChannelInfoTable();
-            for (Map.Entry<Channel, ClientChannelInfo> entry : channelInfoTable.entrySet()) {
+            for (Map.Entry<RemotingChannel, ClientChannelInfo> entry : channelInfoTable.entrySet()) {
                 int version = entry.getValue().getVersion();
                 if (version >= MQVersion.Version.V3_0_7_SNAPSHOT.ordinal()) {
                     try {
@@ -193,7 +192,7 @@ public class Broker2Client {
                     response.setRemark("the client does not support this feature. version="
                         + MQVersion.getVersionDesc(version));
                     log.warn("[reset-offset] the client does not support this feature. version={}",
-                        RemotingHelper.parseChannelRemoteAddr(entry.getKey()), MQVersion.getVersionDesc(version));
+                        RemotingHelper.parseChannelRemoteAddr(entry.getKey().remoteAddress()), MQVersion.getVersionDesc(version));
                     return response;
                 }
             }
@@ -238,7 +237,7 @@ public class Broker2Client {
 
         Map<String, Map<MessageQueue, Long>> consumerStatusTable =
             new HashMap<String, Map<MessageQueue, Long>>();
-        ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
+        ConcurrentMap<RemotingChannel, ClientChannelInfo> channelInfoTable =
             this.brokerController.getConsumerManager().getConsumerGroupInfo(group).getChannelInfoTable();
         if (null == channelInfoTable || channelInfoTable.isEmpty()) {
             result.setCode(ResponseCode.SYSTEM_ERROR);
@@ -246,7 +245,7 @@ public class Broker2Client {
             return result;
         }
 
-        for (Map.Entry<Channel, ClientChannelInfo> entry : channelInfoTable.entrySet()) {
+        for (Map.Entry<RemotingChannel, ClientChannelInfo> entry : channelInfoTable.entrySet()) {
             int version = entry.getValue().getVersion();
             String clientId = entry.getValue().getClientId();
             if (version < MQVersion.Version.V3_0_7_SNAPSHOT.ordinal()) {
@@ -254,7 +253,7 @@ public class Broker2Client {
                 result.setRemark("the client does not support this feature. version="
                     + MQVersion.getVersionDesc(version));
                 log.warn("[get-consumer-status] the client does not support this feature. version={}",
-                    RemotingHelper.parseChannelRemoteAddr(entry.getKey()), MQVersion.getVersionDesc(version));
+                    RemotingHelper.parseChannelRemoteAddr(entry.getKey().remoteAddress()), MQVersion.getVersionDesc(version));
                 return result;
             } else if (UtilAll.isBlank(originClientId) || originClientId.equals(clientId)) {
                 try {
