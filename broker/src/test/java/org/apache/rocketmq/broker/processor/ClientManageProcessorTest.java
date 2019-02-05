@@ -28,15 +28,11 @@ import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.UnregisterClientRequestHeader;
 import org.apache.rocketmq.common.protocol.heartbeat.ConsumerData;
-import org.apache.rocketmq.remoting.ClientConfig;
-import org.apache.rocketmq.remoting.RemotingChannel;
-import org.apache.rocketmq.remoting.ServerConfig;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.CodecHelper;
-import org.apache.rocketmq.remoting.netty.NettyChannelHandlerContextImpl;
-import org.apache.rocketmq.remoting.netty.NettyChannelImpl;
+import org.apache.rocketmq.remoting.netty.NettyClientConfig;
+import org.apache.rocketmq.remoting.netty.NettyServerConfig;
+import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.remoting.serialize.LanguageCode;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,15 +49,9 @@ import static org.mockito.Mockito.when;
 public class ClientManageProcessorTest {
     private ClientManageProcessor clientManageProcessor;
     @Spy
-    private BrokerController brokerController = new BrokerController(new BrokerConfig(), new ServerConfig(), new ClientConfig(), new MessageStoreConfig());
+    private BrokerController brokerController = new BrokerController(new BrokerConfig(), new NettyServerConfig(), new NettyClientConfig(), new MessageStoreConfig());
     @Mock
-    private NettyChannelHandlerContextImpl handlerContext;
-
-    @Mock
-    private ChannelHandlerContext channelHandlerContext;
-
-    private RemotingChannel remotingChannel;
-
+    private ChannelHandlerContext handlerContext;
     @Mock
     private Channel channel;
 
@@ -72,12 +62,11 @@ public class ClientManageProcessorTest {
 
     @Before
     public void init() {
-        when(handlerContext.getChannelHandlerContext()).thenReturn(channelHandlerContext);
-        when(channelHandlerContext.channel()).thenReturn(channel);
+        when(handlerContext.channel()).thenReturn(channel);
         clientManageProcessor = new ClientManageProcessor(brokerController);
-        remotingChannel = new NettyChannelImpl(channel);
-        clientChannelInfo = new ClientChannelInfo(remotingChannel, clientId, LanguageCode.JAVA, 100);
+        clientChannelInfo = new ClientChannelInfo(channel, clientId, LanguageCode.JAVA, 100);
         brokerController.getProducerManager().registerProducer(group, clientChannelInfo);
+
         ConsumerData consumerData = createConsumerData(group, topic);
         brokerController.getConsumerManager().registerConsumer(
             consumerData.getGroupName(),
@@ -92,9 +81,9 @@ public class ClientManageProcessorTest {
     @Test
     public void processRequest_UnRegisterProducer() throws Exception {
         brokerController.getProducerManager().registerProducer(group, clientChannelInfo);
-        HashMap<RemotingChannel, ClientChannelInfo> channelMap = brokerController.getProducerManager().getGroupChannelTable().get(group);
+        HashMap<Channel, ClientChannelInfo> channelMap = brokerController.getProducerManager().getGroupChannelTable().get(group);
         assertThat(channelMap).isNotNull();
-        assertThat(channelMap.get(remotingChannel)).isEqualTo(clientChannelInfo);
+        assertThat(channelMap.get(channel)).isEqualTo(clientChannelInfo);
 
         RemotingCommand request = createUnRegisterProducerCommand();
         RemotingCommand response = clientManageProcessor.processRequest(handlerContext, request);
@@ -126,7 +115,7 @@ public class ClientManageProcessorTest {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.UNREGISTER_CLIENT, requestHeader);
         request.setLanguage(LanguageCode.JAVA);
         request.setVersion(100);
-        CodecHelper.makeCustomHeaderToNet(request);
+        request.makeCustomHeaderToNet();
         return request;
     }
 
@@ -137,7 +126,7 @@ public class ClientManageProcessorTest {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.UNREGISTER_CLIENT, requestHeader);
         request.setLanguage(LanguageCode.JAVA);
         request.setVersion(100);
-        CodecHelper.makeCustomHeaderToNet(request);
+        request.makeCustomHeaderToNet();
         return request;
     }
 }
