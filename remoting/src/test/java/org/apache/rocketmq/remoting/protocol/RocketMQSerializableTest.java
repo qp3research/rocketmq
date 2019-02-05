@@ -17,9 +17,6 @@
 package org.apache.rocketmq.remoting.protocol;
 
 import java.util.HashMap;
-import org.apache.rocketmq.remoting.serialize.LanguageCode;
-import org.apache.rocketmq.remoting.serialize.RocketMQSerializable;
-import org.apache.rocketmq.remoting.serialize.SerializeType;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -171,18 +171,6 @@ public class BrokerConfig {
     @ImportantField
     private long transactionCheckInterval = 60 * 1000;
 
-
-    @ImportantField
-    private boolean transactionEnable = true;
-
-    public boolean isTransactionEnable() {
-        return transactionEnable;
-    }
-
-    public void setTransactionEnable(boolean transactionEnable) {
-        this.transactionEnable = transactionEnable;
-    }
-
     public boolean isTraceOn() {
         return traceOn;
     }
