@@ -17,10 +17,12 @@
 
 package org.apache.rocketmq.remoting;
 
+import org.apache.rocketmq.remoting.interceptor.InterceptorGroup;
+
 public interface RemotingService {
     void start();
 
     void shutdown();
 
-    void registerRPCHook(RPCHook rpcHook);
+    void registerInterceptorGroup(InterceptorGroup interceptorGroup);
 }

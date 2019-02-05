@@ -26,6 +26,9 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.ChannelEventListener;
+import org.apache.rocketmq.remoting.RemotingChannel;
+import org.apache.rocketmq.remoting.common.RemotingHelper;
+import org.apache.rocketmq.remoting.netty.NettyChannelImpl;
 
 public class ClientHousekeepingService implements ChannelEventListener {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -55,7 +58,6 @@ public class ClientHousekeepingService implements ChannelEventListener {
     private void scanExceptionChannel() {
         this.brokerController.getProducerManager().scanNotActiveChannel();
         this.brokerController.getConsumerManager().scanNotActiveChannel();
-        this.brokerController.getFilterServerManager().scanNotActiveChannel();
     }
 
     public void shutdown() {
@@ -63,28 +65,37 @@ public class ClientHousekeepingService implements ChannelEventListener {
     }
 
     @Override
-    public void onChannelConnect(String remoteAddr, Channel channel) {
-
+    public void onChannelConnect(String remoteAddr, RemotingChannel channel) {
+        log.info("Remoting channel connected: {}", RemotingHelper.parseChannelRemoteAddr(channel.remoteAddress()));
     }
 
     @Override
-    public void onChannelClose(String remoteAddr, Channel channel) {
-        this.brokerController.getProducerManager().doChannelCloseEvent(remoteAddr, channel);
-        this.brokerController.getConsumerManager().doChannelCloseEvent(remoteAddr, channel);
+    public void onChannelClose(String remoteAddr, RemotingChannel remotingChannel) {
+        log.info("Remoting channel closed: {}", RemotingHelper.parseChannelRemoteAddr(remotingChannel.remoteAddress()));
+        NettyChannelImpl nettyChannel = (NettyChannelImpl) remotingChannel;
+        Channel channel = nettyChannel.getChannel();
+        this.brokerController.getProducerManager().doChannelCloseEvent(remoteAddr, remotingChannel);
+        this.brokerController.getConsumerManager().doChannelCloseEvent(remoteAddr, remotingChannel);
         this.brokerController.getFilterServerManager().doChannelCloseEvent(remoteAddr, channel);
     }
 
     @Override
-    public void onChannelException(String remoteAddr, Channel channel) {
-        this.brokerController.getProducerManager().doChannelCloseEvent(remoteAddr, channel);
-        this.brokerController.getConsumerManager().doChannelCloseEvent(remoteAddr, channel);
+    public void onChannelException(String remoteAddr, RemotingChannel remotingChannel) {
+        NettyChannelImpl nettyChannel = (NettyChannelImpl) remotingChannel;
+        Channel channel = nettyChannel.getChannel();
+        log.info("Remoting channel exception: {}", RemotingHelper.parseChannelRemoteAddr(remotingChannel.remoteAddress()));
+        this.brokerController.getProducerManager().doChannelCloseEvent(remoteAddr, remotingChannel);
+        this.brokerController.getConsumerManager().doChannelCloseEvent(remoteAddr, remotingChannel);
         this.brokerController.getFilterServerManager().doChannelCloseEvent(remoteAddr, channel);
     }
 
     @Override
-    public void onChannelIdle(String remoteAddr, Channel channel) {
-        this.brokerController.getProducerManager().doChannelCloseEvent(remoteAddr, channel);
-        this.brokerController.getConsumerManager().doChannelCloseEvent(remoteAddr, channel);
+    public void onChannelIdle(String remoteAddr, RemotingChannel remotingChannel) {
+        NettyChannelImpl nettyChannel = (NettyChannelImpl) remotingChannel;
+        Channel channel = nettyChannel.getChannel();
+        log.info("Remoting channel idle: {}", RemotingHelper.parseChannelRemoteAddr(remotingChannel.remoteAddress()));
+        this.brokerController.getProducerManager().doChannelCloseEvent(remoteAddr, remotingChannel);
+        this.brokerController.getConsumerManager().doChannelCloseEvent(remoteAddr, remotingChannel);
         this.brokerController.getFilterServerManager().doChannelCloseEvent(remoteAddr, channel);
     }
 }
