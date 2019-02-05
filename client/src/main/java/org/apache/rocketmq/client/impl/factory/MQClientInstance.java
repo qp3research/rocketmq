@@ -36,7 +36,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.admin.MQAdminExtInner;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
@@ -63,7 +62,6 @@ import org.apache.rocketmq.common.ServiceState;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.PermName;
 import org.apache.rocketmq.common.filter.ExpressionType;
-import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
@@ -76,23 +74,24 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.common.protocol.route.BrokerData;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
-import org.apache.rocketmq.remoting.RPCHook;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.remoting.ClientConfig;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingException;
-import org.apache.rocketmq.remoting.netty.NettyClientConfig;
+import org.apache.rocketmq.remoting.interceptor.InterceptorGroup;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 public class MQClientInstance {
     private final static long LOCK_TIMEOUT_MILLIS = 3000;
     private final InternalLogger log = ClientLogger.getLog();
-    private final ClientConfig clientConfig;
+    private final org.apache.rocketmq.client.ClientConfig clientConfig;
     private final int instanceIndex;
     private final String clientId;
     private final long bootTimestamp = System.currentTimeMillis();
     private final ConcurrentMap<String/* group */, MQProducerInner> producerTable = new ConcurrentHashMap<String, MQProducerInner>();
     private final ConcurrentMap<String/* group */, MQConsumerInner> consumerTable = new ConcurrentHashMap<String, MQConsumerInner>();
     private final ConcurrentMap<String/* group */, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<String, MQAdminExtInner>();
-    private final NettyClientConfig nettyClientConfig;
+    private final ClientConfig nettyClientConfig;
     private final MQClientAPIImpl mQClientAPIImpl;
     private final MQAdminImpl mQAdminImpl;
     private final ConcurrentMap<String/* Topic */, TopicRouteData> topicRouteTable = new ConcurrentHashMap<String, TopicRouteData>();
@@ -118,18 +117,19 @@ public class MQClientInstance {
     private DatagramSocket datagramSocket;
     private Random random = new Random();
 
-    public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId) {
+    public MQClientInstance(org.apache.rocketmq.client.ClientConfig clientConfig, int instanceIndex, String clientId) {
         this(clientConfig, instanceIndex, clientId, null);
     }
 
-    public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId, RPCHook rpcHook) {
+    public MQClientInstance(org.apache.rocketmq.client.ClientConfig clientConfig, int instanceIndex, String clientId,
+        InterceptorGroup interceptorGroup) {
         this.clientConfig = clientConfig;
         this.instanceIndex = instanceIndex;
-        this.nettyClientConfig = new NettyClientConfig();
+        this.nettyClientConfig = new ClientConfig();
         this.nettyClientConfig.setClientCallbackExecutorThreads(clientConfig.getClientCallbackExecutorThreads());
         this.nettyClientConfig.setUseTLS(clientConfig.isUseTLS());
         this.clientRemotingProcessor = new ClientRemotingProcessor(this);
-        this.mQClientAPIImpl = new MQClientAPIImpl(this.nettyClientConfig, this.clientRemotingProcessor, rpcHook, clientConfig);
+        this.mQClientAPIImpl = new MQClientAPIImpl(this.nettyClientConfig, this.clientRemotingProcessor, interceptorGroup, clientConfig);
 
         if (this.clientConfig.getNamesrvAddr() != null) {
             this.mQClientAPIImpl.updateNameServerAddressList(this.clientConfig.getNamesrvAddr());
@@ -547,6 +547,7 @@ public class MQClientInstance {
                                     log.info(heartbeatData.toString());
                                 }
                             } catch (Exception e) {
+                                log.error("send heart beat error:{}", e);
                                 if (this.isBrokerInNameServer(addr)) {
                                     log.info("send heart beat to broker[{} {} {}] failed", brokerName, id, addr);
                                 } else {
@@ -720,9 +721,10 @@ public class MQClientInstance {
 
         return false;
     }
+
     /**
-     * This method will be removed in the version 5.0.0,because filterServer was removed,and method <code>subscribe(final String topic, final MessageSelector messageSelector)</code>
-     * is recommended.
+     * This method will be removed in the version 5.0.0,because filterServer was removed,and method
+     * <code>subscribe(final String topic, final MessageSelector messageSelector)</code> is recommended.
      */
     @Deprecated
     private void uploadFilterClassToAllFilterServer(final String consumerGroup, final String fullClassName,
@@ -1046,19 +1048,6 @@ public class MQClientInstance {
             if (this.brokerVersionTable.get(brokerName).containsKey(brokerAddr)) {
                 return this.brokerVersionTable.get(brokerName).get(brokerAddr);
             }
-        } else {
-            HeartbeatData heartbeatData = prepareHeartbeatData();
-            try {
-                int version = this.mQClientAPIImpl.sendHearbeat(brokerAddr, heartbeatData, 3000);
-                return version;
-            } catch (Exception e) {
-                if (this.isBrokerInNameServer(brokerAddr)) {
-                    log.info("send heart beat to broker[{} {}] failed", brokerName, brokerAddr);
-                } else {
-                    log.info("send heart beat to broker[{} {}] exception, because the broker not up, forget it", brokerName,
-                        brokerAddr);
-                }
-            }
         }
         return 0;
     }
@@ -1229,7 +1218,7 @@ public class MQClientInstance {
         return consumerStatsManager;
     }
 
-    public NettyClientConfig getNettyClientConfig() {
+    public ClientConfig getNettyClientConfig() {
         return nettyClientConfig;
     }
 }
