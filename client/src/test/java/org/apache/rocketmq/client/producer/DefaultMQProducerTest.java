@@ -45,7 +45,7 @@ import org.apache.rocketmq.common.protocol.route.BrokerData;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.remoting.exception.RemotingException;
-import org.apache.rocketmq.remoting.netty.NettyRemotingClient;
+import org.apache.rocketmq.remoting.transport.rocketmq.NettyRemotingClient;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -167,7 +167,10 @@ public class DefaultMQProducerTest {
 
     @Test
     public void testSendMessageAsync_Success() throws RemotingException, InterruptedException, MQBrokerException, MQClientException {
+        ExecutorService callbackExecutor = Executors.newSingleThreadExecutor();
         final CountDownLatch countDownLatch = new CountDownLatch(1);
+        when(mQClientAPIImpl.getRemotingClient()).thenReturn((nettyRemotingClient));
+        when(nettyRemotingClient.getCallbackExecutor()).thenReturn(callbackExecutor);
         producer.send(message, new SendCallback() {
             @Override
             public void onSuccess(SendResult sendResult) {
@@ -183,11 +186,16 @@ public class DefaultMQProducerTest {
             }
         });
         countDownLatch.await(3000L, TimeUnit.MILLISECONDS);
+        callbackExecutor.shutdown();
     }
+
     @Test
     public void testSendMessageAsync() throws RemotingException, MQClientException, InterruptedException {
         final AtomicInteger cc = new AtomicInteger(0);
         final CountDownLatch countDownLatch = new CountDownLatch(6);
+        ExecutorService callbackExecutor = Executors.newSingleThreadExecutor();
+        when(mQClientAPIImpl.getRemotingClient()).thenReturn((nettyRemotingClient));
+        when(nettyRemotingClient.getCallbackExecutor()).thenReturn(callbackExecutor);
 
         SendCallback sendCallback = new SendCallback() {
             @Override
@@ -211,21 +219,24 @@ public class DefaultMQProducerTest {
         Message message = new Message();
         message.setTopic("test");
         message.setBody("hello world".getBytes());
-        producer.send(new Message(),sendCallback);
-        producer.send(message,sendCallback,1000);
-        producer.send(message,new MessageQueue(),sendCallback);
-        producer.send(new Message(),new MessageQueue(),sendCallback,1000);
-        producer.send(new Message(),messageQueueSelector,null,sendCallback);
-        producer.send(message,messageQueueSelector,null,sendCallback,1000);
+        producer.send(new Message(), sendCallback);
+        producer.send(message, sendCallback, 1000);
+        producer.send(message, new MessageQueue(), sendCallback);
+        producer.send(new Message(), new MessageQueue(), sendCallback, 1000);
+        producer.send(new Message(), messageQueueSelector, null, sendCallback);
+        producer.send(message, messageQueueSelector, null, sendCallback, 1000);
 
         countDownLatch.await(3000L, TimeUnit.MILLISECONDS);
+        callbackExecutor.shutdown();
         assertThat(cc.get()).isEqualTo(6);
     }
 
     @Test
     public void testSendMessageAsync_BodyCompressed() throws RemotingException, InterruptedException, MQBrokerException, MQClientException {
-
+        ExecutorService callbackExecutor = Executors.newSingleThreadExecutor();
         final CountDownLatch countDownLatch = new CountDownLatch(1);
+        when(mQClientAPIImpl.getRemotingClient()).thenReturn((nettyRemotingClient));
+        when(nettyRemotingClient.getCallbackExecutor()).thenReturn(callbackExecutor);
         producer.send(bigMessage, new SendCallback() {
             @Override
             public void onSuccess(SendResult sendResult) {
@@ -241,6 +252,7 @@ public class DefaultMQProducerTest {
             }
         });
         countDownLatch.await(3000L, TimeUnit.MILLISECONDS);
+        callbackExecutor.shutdown();
     }
 
     @Test

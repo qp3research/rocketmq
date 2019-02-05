@@ -26,6 +26,7 @@ public class Producer {
     public static void main(String[] args) throws MQClientException, InterruptedException {
 
         DefaultMQProducer producer = new DefaultMQProducer("ProducerGroupName");
+
         producer.start();
 
         for (int i = 0; i < 128; i++)
@@ -42,7 +43,6 @@ public class Producer {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-
         producer.shutdown();
     }
 }

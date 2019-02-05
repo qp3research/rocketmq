@@ -41,6 +41,10 @@ public class RemotingUtil {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
     private static boolean isLinuxPlatform = false;
     private static boolean isWindowsPlatform = false;
+    public static final String DEFAULT_PROTOCOL = "rocketmq";
+    public static final String HTTP2_PROTOCOL = "http2";
+    public static final String MQTT_PROTOCOL = "mqtt";
+    public static final String REMOTING_CHARSET = "UTF-8";
 
     static {
         if (OS_NAME != null && OS_NAME.toLowerCase().contains("linux")) {
@@ -156,6 +160,13 @@ public class RemotingUtil {
         sb.append(inetSocketAddress.getAddress().getHostAddress());
         sb.append(":");
         sb.append(inetSocketAddress.getPort());
+        return sb.toString();
+    }
+
+    public static String socketAddress2IpString(final SocketAddress addr) {
+        StringBuilder sb = new StringBuilder();
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) addr;
+        sb.append(inetSocketAddress.getAddress().getHostAddress());
         return sb.toString();
     }
 

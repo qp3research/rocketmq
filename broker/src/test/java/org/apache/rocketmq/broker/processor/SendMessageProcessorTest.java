@@ -18,6 +18,10 @@ package org.apache.rocketmq.broker.processor;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.mqtrace.SendMessageContext;
 import org.apache.rocketmq.broker.mqtrace.SendMessageHook;
@@ -32,9 +36,11 @@ import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.ConsumerSendMsgBackRequestHeader;
 import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeader;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
+import org.apache.rocketmq.remoting.ClientConfig;
+import org.apache.rocketmq.remoting.ServerConfig;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.NettyClientConfig;
-import org.apache.rocketmq.remoting.netty.NettyServerConfig;
+import org.apache.rocketmq.remoting.netty.CodecHelper;
+import org.apache.rocketmq.remoting.netty.NettyChannelHandlerContextImpl;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.AppendMessageResult;
 import org.apache.rocketmq.store.AppendMessageStatus;
@@ -52,11 +58,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -68,9 +69,12 @@ import static org.mockito.Mockito.when;
 public class SendMessageProcessorTest {
     private SendMessageProcessor sendMessageProcessor;
     @Mock
-    private ChannelHandlerContext handlerContext;
+    private NettyChannelHandlerContextImpl handlerContext;
+
+    @Mock
+    private ChannelHandlerContext channelHandlerContext;
     @Spy
-    private BrokerController brokerController = new BrokerController(new BrokerConfig(), new NettyServerConfig(), new NettyClientConfig(), new MessageStoreConfig());
+    private BrokerController brokerController = new BrokerController(new BrokerConfig(), new ServerConfig(), new ClientConfig(), new MessageStoreConfig());
     @Mock
     private MessageStore messageStore;
 
@@ -86,7 +90,8 @@ public class SendMessageProcessorTest {
         when(messageStore.now()).thenReturn(System.currentTimeMillis());
         Channel mockChannel = mock(Channel.class);
         when(mockChannel.remoteAddress()).thenReturn(new InetSocketAddress(1024));
-        when(handlerContext.channel()).thenReturn(mockChannel);
+        when(handlerContext.getChannelHandlerContext()).thenReturn(channelHandlerContext);
+        when(channelHandlerContext.channel()).thenReturn(mockChannel);
         when(messageStore.lookMessageByOffset(anyLong())).thenReturn(new MessageExt());
         sendMessageProcessor = new SendMessageProcessor(brokerController);
     }
@@ -198,7 +203,7 @@ public class SendMessageProcessorTest {
                 response[0] = invocation.getArgument(0);
                 return null;
             }
-        }).when(handlerContext).writeAndFlush(any(Object.class));
+        }).when(channelHandlerContext).writeAndFlush(any(Object.class));
         RemotingCommand responseToReturn = sendMessageProcessor.processRequest(handlerContext, request);
         if (responseToReturn != null) {
             assertThat(response[0]).isNull();
@@ -217,7 +222,7 @@ public class SendMessageProcessorTest {
         header.setSysFlag(sysFlag);
         RemotingCommand request = RemotingCommand.createRequestCommand(requestCode, header);
         request.setBody(new byte[] {'a'});
-        request.makeCustomHeaderToNet();
+        CodecHelper.makeCustomHeaderToNet(request);
         return request;
     }
 
@@ -240,7 +245,7 @@ public class SendMessageProcessorTest {
 
         RemotingCommand request = RemotingCommand.createRequestCommand(requestCode, requestHeader);
         request.setBody(new byte[] {'a'});
-        request.makeCustomHeaderToNet();
+        CodecHelper.makeCustomHeaderToNet(request);
         return request;
     }
 
@@ -253,7 +258,7 @@ public class SendMessageProcessorTest {
         requestHeader.setOffset(123L);
 
         RemotingCommand request = RemotingCommand.createRequestCommand(requestCode, requestHeader);
-        request.makeCustomHeaderToNet();
+        CodecHelper.makeCustomHeaderToNet(request);
         return request;
     }
 
@@ -266,7 +271,7 @@ public class SendMessageProcessorTest {
                 response[0] = invocation.getArgument(0);
                 return null;
             }
-        }).when(handlerContext).writeAndFlush(any(Object.class));
+        }).when(channelHandlerContext).writeAndFlush(any(Object.class));
         RemotingCommand responseToReturn = sendMessageProcessor.processRequest(handlerContext, request);
         if (responseToReturn != null) {
             assertThat(response[0]).isNull();
