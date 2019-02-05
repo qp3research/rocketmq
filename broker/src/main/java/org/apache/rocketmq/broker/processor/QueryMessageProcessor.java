@@ -32,15 +32,13 @@ import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.QueryMessageRequestHeader;
 import org.apache.rocketmq.common.protocol.header.QueryMessageResponseHeader;
 import org.apache.rocketmq.common.protocol.header.ViewMessageRequestHeader;
-import org.apache.rocketmq.remoting.RemotingChannel;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.RequestProcessor;
-import org.apache.rocketmq.remoting.netty.NettyChannelHandlerContextImpl;
+import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.QueryMessageResult;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 
-public class QueryMessageProcessor implements RequestProcessor {
+public class QueryMessageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
     private final BrokerController brokerController;
@@ -50,10 +48,8 @@ public class QueryMessageProcessor implements RequestProcessor {
     }
 
     @Override
-    public RemotingCommand processRequest(RemotingChannel remotingChannel,
-        RemotingCommand request) throws RemotingCommandException {
-        NettyChannelHandlerContextImpl nettyChannelHandlerContext = (NettyChannelHandlerContextImpl) remotingChannel;
-        ChannelHandlerContext ctx = nettyChannelHandlerContext.getChannelHandlerContext();
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
+        throws RemotingCommandException {
         switch (request.getCode()) {
             case RequestCode.QUERY_MESSAGE:
                 return this.queryMessage(ctx, request);
